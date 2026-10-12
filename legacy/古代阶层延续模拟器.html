@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>古代阶层延续模拟器 v4.2</title>
+<style>
+  :root{
+    --bg:#0f1216; --panel:#171c23; --line:#232a33;
+    --text:#e6ebf2; --muted:#7d8998; --muted2:#aab4c2;
+    --gold:#f2b544; --blue:#5b8def; --red:#ef6c6c; --teal:#5bddc0;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family: ui-sans-serif, system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{
+    display:grid; grid-template-columns:340px 1fr; gap:18px;
+    padding:18px; max-width:1400px; margin:0 auto;
+  }
+  @media (max-width:900px){ .wrap{grid-template-columns:1fr;} }
+
+  .panel{
+    background:var(--panel); border:1px solid var(--line);
+    border-radius:14px; padding:18px; align-self:start;
+    position:sticky; top:18px;
+    max-height:calc(100vh - 36px); overflow-y:auto;
+  }
+  @media (max-width:900px){ .panel{position:static; max-height:none;} }
+  .panel h1{font-size:16px; margin:0 0 4px; letter-spacing:.3px}
+  .panel .sub{font-size:12px; color:var(--muted); margin:0 0 16px}
+
+  .group-title{
+    font-size:11px; color:#5f6b7a; font-weight:600;
+    letter-spacing:.6px; text-transform:uppercase;
+    margin:16px 0 10px; padding-bottom:6px;
+    border-bottom:1px dashed var(--line);
+  }
+  .group-title:first-child{margin-top:0}
+
+  .ctrl{margin-bottom:13px}
+  .ctrl-head{display:flex; justify-content:space-between; align-items:baseline; font-size:12.5px; margin-bottom:6px; gap:8px}
+  .ctrl-head label{color:var(--muted2)}
+  .ctrl-head output{color:var(--gold); font-weight:600; font-variant-numeric:tabular-nums; white-space:nowrap}
+  .hint{font-size:10.5px; color:#5f6b7a; margin-top:4px; line-height:1.5}
+
+  input[type=range]{
+    width:100%; -webkit-appearance:none; appearance:none;
+    height:4px; border-radius:2px; background:#2a323d; outline:none; cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:14px; height:14px; border-radius:50%;
+    background:var(--gold); border:2px solid #12161b; cursor:pointer;
+    box-shadow:0 0 0 1px rgba(242,181,68,.35);
+  }
+  input[type=range]::-moz-range-thumb{
+    width:12px; height:12px; border-radius:50%;
+    background:var(--gold); border:2px solid #12161b; cursor:pointer;
+  }
+
+  .seg{
+    display:flex; gap:4px; background:#12171d;
+    border:1px solid var(--line); border-radius:9px; padding:3px;
+  }
+  .seg button{
+    flex:1; background:transparent; border:0; color:var(--muted);
+    font-size:12px; padding:7px 4px; border-radius:6px; cursor:pointer;
+    font-family:inherit; transition:.15s; white-space:nowrap;
+  }
+  .seg button:hover{color:var(--text)}
+  .seg button.active{background:#2a323d; color:var(--gold); font-weight:600}
+
+  .sim-info{
+    font-size:11.5px; color:var(--muted); margin-top:14px;
+    padding:8px 10px; background:#12171d; border-radius:8px;
+    border:1px solid var(--line); line-height:1.7;
+  }
+  .sim-info b{color:var(--muted2)}
+
+  .reset{
+    width:100%; margin-top:12px; padding:9px; border-radius:9px; cursor:pointer;
+    background:#20262f; color:var(--muted2); border:1px solid var(--line);
+    font-size:13px; font-family:inherit; transition:.15s;
+  }
+  .reset:hover{background:#262d38; color:var(--text)}
+
+  .stats{display:grid; grid-template-columns:repeat(auto-fit,minmax(165px,1fr)); gap:12px; margin-bottom:16px}
+  .stat{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:13px 15px}
+  .stat .k{display:block; font-size:11.5px; color:var(--muted); margin-bottom:7px; letter-spacing:.2px}
+  .stat .v{font-size:21px; font-weight:700; font-variant-numeric:tabular-nums; line-height:1.1}
+  .stat .v.gold{color:var(--gold)}
+  .stat .v.blue{color:var(--blue)}
+  .stat .v.teal{color:var(--teal)}
+  .stat .v.muted{color:var(--muted2)}
+
+  .chart-box{
+    background:var(--panel); border:1px solid var(--line);
+    border-radius:14px; padding:14px 14px 8px; margin-bottom:14px;
+  }
+  .chart-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:8px}
+  .chart-title{font-size:13px; color:var(--muted2); font-weight:600}
+  .legend{display:flex; gap:14px; font-size:11.5px; color:var(--muted); flex-wrap:wrap}
+  .legend i{display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:5px; vertical-align:middle}
+  canvas{display:block; width:100%; height:230px}
+
+  .foot{font-size:11.5px; color:#5f6b7a; line-height:1.75; padding:2px 4px 8px}
+  .foot b{color:#8b97a8; font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <aside class="panel">
+    <h1>古代阶层延续模拟器</h1>
+    <p class="sub">阶层内婚 · 阶层流动 · 血统扩散 · 天灾冲击</p>
+    <div id="controls"></div>
+    <div class="sim-info" id="simInfo">—</div>
+    <button class="reset" id="reset">恢复默认参数</button>
+  </aside>
+
+  <main>
+    <div class="stats">
+      <div class="stat"><span class="k">N 年后总人口</span><span class="v" id="statPop">—</span></div>
+      <div class="stat"><span class="k">当前富人占比</span><span class="v teal" id="statNowRich">—</span></div>
+      <div class="stat"><span class="k" id="kRichAnc">有富人祖先的比例</span><span class="v gold" id="statRichAnc">—</span></div>
+      <div class="stat"><span class="k" id="kRichPop">有富人血统的人数</span><span class="v blue" id="statRichPop">—</span></div>
+    </div>
+
+    <div class="chart-box">
+      <div class="chart-head">
+        <span class="chart-title">血统人口结构</span>
+        <span class="legend">
+          <span><i style="background:#f2b544"></i><span id="lgAnc">有富人祖先</span></span>
+          <span><i style="background:#5b8def"></i><span id="lgNoAnc">无富人祖先</span></span>
+          <span><i style="background:#e6ebf2"></i>总人口</span>
+          <span><i style="background:#ef6c6c"></i>天灾</span>
+        </span>
+      </div>
+      <canvas id="chart1"></canvas>
+    </div>
+
+    <div class="chart-box">
+      <div class="chart-head">
+        <span class="chart-title" id="title2">随机抽一人：祖先中至少有一位是富人的概率</span>
+        <span class="legend"><span><i style="background:#f2b544"></i>有富人祖先的比例</span></span>
+      </div>
+      <canvas id="chart2"></canvas>
+    </div>
+
+    <div class="chart-box">
+      <div class="chart-head">
+        <span class="chart-title">当前仍是富人的比例（阶层是否延续的真正指标）</span>
+        <span class="legend"><span><i style="background:#5bddc0"></i>当前富人占比</span></span>
+      </div>
+      <canvas id="chart3"></canvas>
+    </div>
+
+    <p class="foot">
+      <b>模型设定：</b>
+      人群按「是否有富人血统」×「当前阶层」分成 4 组：
+      <b>有血统·富</b> / <b>有血统·穷</b> / <b>无血统·富</b> / <b>无血统·穷</b>。
+      每代先按<b>跨阶层婚配抑制系数</b>决定跨阶层婚配数量，再按<b>密度依赖生育</b>产生下一代，
+      然后施加<b>阶层流动</b>（富→穷滑落、穷→富攀升），最后叠加该代内发生的<b>天灾</b>死亡率。
+      <br>
+      <b>血统判定（本版修正）：</b>
+      只要父母中有一方<b>当前是富人</b>，其子女就一定算“有富人祖先”——因为父母本身就是子女的祖先。
+      因此在双侧模式下：
+      富×富 → 子女必然有血统；跨阶层 → 子女必然有血统；穷×穷 → 只有双方都无血统标记时才无血统。
+      在仅父系模式下：
+      富×富 → 子女必然有父系血统；穷×穷 → 取决于父亲本身有无标记；跨阶层 → 假设一半父亲是富人、一半父亲是穷人，按此加权。
+      <br>
+      <b>跨阶层婚配抑制系数：</b>
+      <b>0%</b> 表示完全随机配对，此时跨阶层夫妻对数 = <b>R·P / (R+P)</b>，
+      对应跨阶层夫妻占比 = <b>2·r·(1-r)</b>（例如富人占 10% 时为 18%）。
+      <b>100%</b> 表示完全阶层内婚。数值越大，实际跨阶层比例越低。
+      <br>
+      <b>子女存活率：</b>
+      富×富婚配使用<b>富人子女存活率</b>，穷×穷婚配使用<b>穷人子女存活率</b>，
+      跨阶层婚配的子女按两种存活率的<b>平均值</b>计算。
+      当富人存活率高于穷人存活率时，即便生育数相同，富人阶层的净增长也会更快，
+      长期看会推高「当前富人占比」。
+      <br>
+      <b>关于承载力：</b>当总人口 N → K 时，每对夫妻存活子女数平滑降到约 2（更替水平），
+      所以人口会稳定在 K 附近。若低密度下每对夫妻的存活子女数本身低于 2，人口会下降，
+      此时密度依赖只会让生育进一步降低，不会反向拉升。
+      <br>
+      <b>简化假设：</b>跨阶层婚配的子女按 50/50 分到富/穷两组。
+      仅父系模式下额外假设各群体内部性别比 1:1，且跨阶层婚配中富方为父、穷方为母与穷方为父、富方为母各占一半。
+      <br>
+      <b>关键区别：</b>「祖上有富人」指<b>拥有任意一位（或父系线上任意一位）富人祖先</b>——只要存在跨阶层通婚，
+      这一比例就单调爬升，最终必然趋近 100%，它不回答阶层是否固化。
+      真正有信息量的是<b>当前富人占比</b>及其随时间的走势。
+    </p>
+  </main>
+</div>
+
+<script>
+/* ============ 默认参数 ============ */
+const DEFAULTS = {
+  ancMode: 1,          // 1 = 父母任一方；2 = 仅父系
+  pop0: 3000,
+  richPct: 10,
+  richAnc0: 100,       // 初始富人中本身有富人祖先的比例
+  poorAnc0: 0,         // 初始穷人中本身有富人祖先的比例
+  years: 750,
+  genLen: 30,
+  birth: 5,
+  richSurvive: 80,     // 富人子女存活至成年 %
+  poorSurvive: 50,     // 穷人子女存活至成年 %
+  K: 12000,
+  crossSuppress: 70,   // 跨阶层婚配抑制系数（0 = 随机配对，100 = 完全内婚）
+  down: 50,
+  up: 10,
+  disasterGap: 30,
+  poorDeath: 10,
+  richDeath: 5
+};
+const params = Object.assign({}, DEFAULTS);
+
+/* ============ 控件定义 ============ */
+const CTRL = [
+  {group:'血统判定', key:'ancMode', label:'祖上富过的判定方式', type:'seg',
+   options:[{v:1,label:'父母任一方'},{v:2,label:'仅父系（父亲）'}],
+   hint:'父母任一方：父母任意一方祖上富过即算，血统双侧扩散；同时父母当前是富人，也视为子女的富人祖先。仅父系：只有父亲的父系血统计入，母亲一方富过不算；跨阶层婚配中假设富方为父与穷方为父各占一半。'},
+
+  {group:'人口与生育', key:'pop0',     label:'初始总人口',           unit:'万', min:100,  max:20000, step:100},
+  {group:'人口与生育', key:'richPct',  label:'初始富人占比',         unit:'%',  min:1,    max:50,    step:1},
+  {group:'人口与生育', key:'richAnc0', label:'初始富人中本身有富人祖先', unit:'%', min:0, max:100, step:5,
+   hint:'100% = 所有初始富人都是"纯血统"；调低表示初始富人中混入了新贵'},
+  {group:'人口与生育', key:'poorAnc0', label:'初始穷人中本身有富人祖先', unit:'%', min:0, max:100, step:5,
+   hint:'反映初始时已有部分穷人祖上富过（如家道中落者）'},
+  {group:'人口与生育', key:'years',    label:'模拟年数',             unit:'年', min:60,   max:900,   step:30},
+  {group:'人口与生育', key:'genLen',   label:'一代时长',             unit:'年', min:15,   max:40,    step:1},
+  {group:'人口与生育', key:'birth',    label:'每对夫妻生育数',       unit:'个', min:1,    max:10,    step:0.5},
+  {group:'人口与生育', key:'richSurvive', label:'富人子女存活至成年', unit:'%', min:10,   max:95,    step:1,
+   hint:'富×富婚配使用；跨阶层婚配取两档平均'},
+  {group:'人口与生育', key:'poorSurvive', label:'穷人子女存活至成年', unit:'%', min:10,   max:95,    step:1,
+   hint:'穷×穷婚配使用。若富人存活率更高，富人阶层净增长更快，会推高当前富人占比'},
+
+  {group:'人口承载力', key:'K',        label:'人口承载力 K',         unit:'万', min:1000, max:50000, step:500,
+   hint:'人口会稳定在 K 附近（密度依赖生育）'},
+
+  {group:'阶层流动',   key:'crossSuppress', label:'跨阶层婚配抑制系数', unit:'%',  min:0, max:100, step:5,
+   hint:'0% = 随机配对（跨阶层对数 = R·P/(R+P)，占比 = 2r(1-r)）；100% = 完全阶层内婚。数值越大，跨阶层婚配越少'},
+  {group:'阶层流动',   key:'down',     label:'富→穷滑落率',          unit:'%',  min:0,    max:80,    step:1},
+  {group:'阶层流动',   key:'up',       label:'穷→富攀升率',          unit:'%',  min:0,    max:30,    step:1},
+
+  {group:'天灾',       key:'disasterGap', label:'天灾间隔',           unit:'年', min:20,   max:200,   step:5},
+  {group:'天灾',       key:'poorDeath',   label:'天灾·穷人死亡率',    unit:'%',  min:0,    max:90,    step:1},
+  {group:'天灾',       key:'richDeath',   label:'天灾·富人死亡率',    unit:'%',  min:0,    max:90,    step:1}
+];
+
+/* ============ 工具 ============ */
+const clamp01 = v => Math.min(1, Math.max(0, v));
+
+/* ============ 核心模拟 ============ */
+function simulate(p){
+  const gens = Math.max(1, Math.floor(p.years / p.genLen));
+  const L    = p.genLen;
+
+  const sR = clamp01(p.richSurvive / 100);
+  const sP = clamp01(p.poorSurvive / 100);
+  const e  = clamp01(p.crossSuppress / 100);
+  const d  = clamp01(p.down / 100);
+  const u  = clamp01(p.up / 100);
+  const rD = clamp01(p.richDeath / 100);
+  const pD = clamp01(p.poorDeath / 100);
+  const K  = Math.max(1e-6, p.K);
+
+  // 是否父系单线判定
+  const pat = (p.ancMode === 2);
+
+  // 初始条件：富人中只有 richAnc0 比例"本身就有富人祖先"
+  const rich0    = p.pop0 * p.richPct / 100;
+  const rich0A   = rich0 * clamp01(p.richAnc0 / 100);
+  const poor0    = Math.max(0, p.pop0 - rich0);
+  const poor0A   = poor0 * clamp01((p.poorAnc0 || 0) / 100);
+
+  let FR = rich0A;
+  let NR = rich0 - rich0A;
+  let FP = poor0A;
+  let NP = poor0 - poor0A;
+
+  const pts = [{t:0, FR, FP, NR, NP}];
+
+  // 天灾年份
+  const disasters = [];
+  if (p.disasterGap > 0){
+    for (let dd = p.disasterGap; dd <= p.years + 1e-9; dd += p.disasterGap){
+      disasters.push(dd);
+    }
+  }
+
+  // 低密度时每对夫妻的存活子女数（按阶层分开）
+  const maxKidsR = p.birth * sR;
+  const maxKidsP = p.birth * sP;
+
+  // 密度依赖生育：
+  //   maxKids >= 2 时，N=0 为 maxKids，N=K 平滑降到 2；
+  //   maxKids <  2 时，人口本来就在下降，密度依赖让其进一步下降，不反向拉升。
+  function kidsAtDensity(maxKids, N){
+    const f = Math.min(1, Math.max(0, N / K));
+    if (maxKids >= 2){
+      const denom = 1 + (maxKids / 2 - 1) * f;
+      return denom > 0.15 ? maxKids / denom : 0.02;
+    } else {
+      return Math.max(0.005, maxKids * (1 - 0.6 * f));
+    }
+  }
+
+  for (let i = 1; i <= gens; i++){
+    const t0 = (i - 1) * L;
+    const t1 = i * L;
+
+    const N = FR + FP + NR + NP;
+    if (N < 1e-9){
+      FR = FP = NR = NP = 0;
+      pts.push({t:t1, FR:0, FP:0, NR:0, NP:0});
+      continue;
+    }
+
+    const R = FR + NR;   // 当前富人
+    const P = FP + NP;   // 当前穷人
+
+    // 阶层内部，有富人血统的比例
+    const x = R > 0 ? FR / R : 0;
+    const y = P > 0 ? FP / P : 0;
+
+    // ---- 密度依赖生育 ----
+    const kidsR = kidsAtDensity(maxKidsR, N);
+    const kidsP = kidsAtDensity(maxKidsP, N);
+    const kidsCM = (kidsR + kidsP) / 2;   // 跨阶层婚配取平均
+
+    // ---- 婚配结构（随机配对基准 × 抑制系数）----
+    //   随机配对下，跨阶层夫妻对数 = R·P/(R+P)
+    //   e = 0 时跨阶层夫妻占比 = 2·r·(1-r)
+    const C0 = (R + P) > 0 ? (R * P) / (R + P) : 0;
+    const C  = (1 - e) * C0;
+
+    const ffM = Math.max(0, R - C) / 2;    // 富×富夫妻对数
+    const ppM = Math.max(0, P - C) / 2;    // 穷×穷夫妻对数
+    const cmM = C;                          // 富×穷夫妻对数
+
+    const ffKids = ffM * kidsR;
+    const ppKids = ppM * kidsP;
+    const cmKids = cmM * kidsCM;
+
+    // ---- 子代获得富人血统的概率 ----
+    let pFF, pPP, pCM;
+    if (pat){
+      // 仅父系：血统只随父亲传递
+      //   富×富：父亲是富人 → 必然
+      //   穷×穷：父亲是穷人，概率 = y（父亲本身已有父系血统）
+      //   跨阶层：假设一半父亲是富人、一半父亲是穷人
+      pFF = 1;
+      pPP = y;
+      pCM = 0.5 * (1 + y);
+    } else {
+      // 双侧：父母任一方有即可
+      //   富×富：父母均富人 → 必然
+      //   穷×穷：双方都无标记才无标记
+      //   跨阶层：有一方是富人 → 必然
+      pFF = 1;
+      pPP = 1 - (1 - y) * (1 - y);
+      pCM = 1;
+    }
+
+    // ---- 出生人口按 (血统 × 阶层) 分布 ----
+    // 跨阶层婚配的子女按 50/50 分到富/穷两组
+    const FR2 = ffKids * pFF           + cmKids * pCM       * 0.5;
+    const NR2 = ffKids * (1 - pFF)     + cmKids * (1 - pCM) * 0.5;
+    const FP2 = ppKids * pPP           + cmKids * pCM       * 0.5;
+    const NP2 = ppKids * (1 - pPP)     + cmKids * (1 - pCM) * 0.5;
+
+    // ---- 阶层流动（不改变血统，只改变当前阶层）----
+    const nFR = FR2 * (1 - d) + FP2 * u;
+    const nFP = FP2 * (1 - u) + FR2 * d;
+    const nNR = NR2 * (1 - d) + NP2 * u;
+    const nNP = NP2 * (1 - u) + NR2 * d;
+
+    // ---- 天灾（按当前阶层施加死亡率）----
+    let rMul = 1, pMul = 1;
+    for (const dd of disasters){
+      if (dd > t0 + 1e-9 && dd <= t1 + 1e-9){
+        rMul *= (1 - rD);
+        pMul *= (1 - pD);
+      }
+    }
+    FR = nFR * rMul;
+    NR = nNR * rMul;
+    FP = nFP * pMul;
+    NP = nNP * pMul;
+
+    pts.push({t:t1, FR, FP, NR, NP});
+  }
+
+  return { pts, disasters, gens, L };
+}
+
+/* ============ 格式化 ============ */
+function fmtWan(v){
+  if (v >= 1e4) return (v / 1e4).toFixed(2) + '亿';
+  return Math.round(v).toLocaleString('zh-CN') + '万';
+}
+function niceMax(v){
+  if (!(v > 0)) return 1;
+  const e = Math.pow(10, Math.floor(Math.log10(v)));
+  const f = v / e;
+  let nf;
+  if (f <= 1) nf = 1; else if (f <= 2) nf = 2; else if (f <= 2.5) nf = 2.5;
+  else if (f <= 5) nf = 5; else nf = 10;
+  return nf * e;
+}
+
+/* ============ 折线图 ============ */
+function drawLineChart(canvas, xs, series, opts = {}){
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.clientWidth, H = canvas.clientHeight;
+  if (!W || !H) return;
+  canvas.width  = Math.round(W * dpr);
+  canvas.height = Math.round(H * dpr);
+
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+
+  const pad = { l: 62, r: 14, t: 12, b: 26 };
+  const pw = W - pad.l - pad.r;
+  const ph = H - pad.t - pad.b;
+
+  let maxV = 0;
+  for (const s of series) for (const v of s.values) if (v > maxV) maxV = v;
+  const yMax = opts.yMax != null ? opts.yMax : niceMax(maxV * 1.08);
+  const yMin = 0;
+
+  const t0 = xs[0], t1 = xs[xs.length - 1];
+  const X = t => pad.l + (t1 > t0 ? (t - t0) / (t1 - t0) * pw : 0);
+  const Y = v => pad.t + ph - (v - yMin) / (yMax - yMin) * ph;
+
+  ctx.font = '11px ui-sans-serif, system-ui, sans-serif';
+
+  const ticks = 4;
+  for (let i = 0; i <= ticks; i++){
+    const v = yMin + (yMax - yMin) * i / ticks;
+    const y = Math.round(Y(v)) + 0.5;
+    ctx.strokeStyle = 'rgba(255,255,255,.06)';
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + pw, y); ctx.stroke();
+
+    ctx.fillStyle = '#7d8998';
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText(opts.yFmt ? opts.yFmt(v) : String(Math.round(v)), pad.l - 8, y);
+  }
+
+  const xt = 5;
+  for (let i = 0; i <= xt; i++){
+    const t = t0 + (t1 - t0) * i / xt;
+    const x = Math.round(X(t)) + 0.5;
+    ctx.strokeStyle = 'rgba(255,255,255,.035)';
+    ctx.beginPath(); ctx.moveTo(x, pad.t); ctx.lineTo(x, pad.t + ph); ctx.stroke();
+
+    ctx.fillStyle = '#7d8998';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillText(Math.round(t) + '年', x, pad.t + ph + 7);
+  }
+
+  for (const dd of (opts.markers || [])){
+    if (dd < t0 || dd > t1) continue;
+    const x = Math.round(X(dd)) + 0.5;
+    ctx.save();
+    ctx.setLineDash([3, 4]);
+    ctx.strokeStyle = 'rgba(239,108,108,.5)';
+    ctx.beginPath(); ctx.moveTo(x, pad.t); ctx.lineTo(x, pad.t + ph); ctx.stroke();
+    ctx.restore();
+  }
+
+  for (const s of series){
+    ctx.beginPath();
+    for (let i = 0; i < xs.length; i++){
+      const x = X(xs[i]), y = Y(s.values[i]);
+      i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    }
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = s.dashed ? 1.5 : 2.2;
+    ctx.setLineDash(s.dashed ? [5, 4] : []);
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+/* ============ 渲染 ============ */
+const chart1 = document.getElementById('chart1');
+const chart2 = document.getElementById('chart2');
+const chart3 = document.getElementById('chart3');
+
+function render(){
+  const sim = simulate(params);
+  const { pts, disasters, gens, L } = sim;
+
+  const pat = (params.ancMode === 2);
+
+  const xs         = pts.map(d => d.t);
+  const withAnc    = pts.map(d => d.FR + d.FP);
+  const withoutAnc = pts.map(d => d.NR + d.NP);
+  const total      = pts.map(d => d.FR + d.FP + d.NR + d.NP);
+  const fracAnc    = pts.map((d, i) => total[i] > 0 ? 100 * withAnc[i] / total[i] : 0);
+  const fracRich   = pts.map((d, i) => total[i] > 0 ? 100 * (d.FR + d.NR) / total[i] : 0);
+
+  const last = pts[pts.length - 1];
+  const totalNow    = last.FR + last.FP + last.NR + last.NP;
+  const ancNow      = last.FR + last.FP;
+  const richNow     = last.FR + last.NR;
+  const fracAncNow  = totalNow > 0 ? 100 * ancNow  / totalNow : 0;
+  const fracRichNow = totalNow > 0 ? 100 * richNow / totalNow : 0;
+
+  const ancWord = pat ? '富人父系血统' : '富人血统';
+  document.getElementById('kRichAnc').textContent = pat ? '有富人父系祖先的比例' : '有富人祖先的比例';
+  document.getElementById('kRichPop').textContent = pat ? '有富人父系血统的人数' : '有富人血统的人数';
+  document.getElementById('lgAnc').textContent    = pat ? '有富人父系祖先' : '有富人祖先';
+  document.getElementById('lgNoAnc').textContent  = pat ? '无富人父系祖先' : '无富人祖先';
+  document.getElementById('title2').textContent   =
+    pat ? '随机抽一人：其父系祖先中至少有一位是富人的概率'
+        : '随机抽一人：祖先中至少有一位是富人的概率';
+
+  document.getElementById('statPop').textContent     = fmtWan(totalNow);
+  document.getElementById('statNowRich').textContent = fracRichNow.toFixed(1) + '%';
+  document.getElementById('statRichAnc').textContent = fracAncNow.toFixed(1) + '%';
+  document.getElementById('statRichPop').textContent = fmtWan(ancNow);
+
+  const simYears = gens * L;
+  const initRich = params.pop0 * params.richPct / 100;
+  const initAnc  = initRich * clamp01(params.richAnc0 / 100)
+                 + Math.max(0, params.pop0 - initRich) * clamp01((params.poorAnc0 || 0) / 100);
+
+  document.getElementById('simInfo').innerHTML =
+    `<b>血统判定：</b>${pat ? '仅父系（只随父亲传递）' : '父母任一方（双侧扩散）'}<br>` +
+    `<b>子女存活率：</b>富人 ${params.richSurvive}% ／ 穷人 ${params.poorSurvive}%<br>` +
+    `<b>跨阶层婚配抑制：</b>${params.crossSuppress}%（0 = 随机配对，100 = 完全内婚）<br>` +
+    `<b>实际模拟：</b>${gens} 代 × ${L} 年 / 代 = ${simYears} 年（设定 ${params.years} 年）<br>` +
+    `<b>初始有${ancWord}人数：</b>${fmtWan(initAnc)} 万<br>` +
+    `<b>${simYears} 年后有${ancWord}：</b>${fmtWan(ancNow)} 万（${fracAncNow.toFixed(1)}%）<br>` +
+    `<b>${simYears} 年后仍是富人：</b>${fmtWan(richNow)} 万（${fracRichNow.toFixed(1)}%）`;
+
+  drawLineChart(chart1, xs, [
+    { color: '#5b8def', values: withoutAnc },
+    { color: '#f2b544', values: withAnc },
+    { color: '#e6ebf2', values: total, dashed: true }
+  ], {
+    yFmt: fmtWan,
+    markers: disasters
+  });
+
+  const maxFrac = Math.max(...fracAnc, 1);
+  const y2 = Math.min(100, Math.max(20, Math.ceil(maxFrac * 1.1 / 10) * 10));
+  drawLineChart(chart2, xs, [
+    { color: '#f2b544', values: fracAnc }
+  ], {
+    yMax: y2,
+    yFmt: v => Math.round(v) + '%',
+    markers: disasters
+  });
+
+  const maxRich = Math.max(...fracRich, 1);
+  const y3 = Math.min(100, Math.max(10, Math.ceil(maxRich * 1.15 / 5) * 5));
+  drawLineChart(chart3, xs, [
+    { color: '#5bddc0', values: fracRich }
+  ], {
+    yMax: y3,
+    yFmt: v => Math.round(v) + '%',
+    markers: disasters
+  });
+}
+
+/* ============ 构建滑杆 ============ */
+function formatVal(v, unit){
+  return (Number.isInteger(v) ? v : v.toFixed(1)) + unit;
+}
+
+function buildControls(){
+  const box = document.getElementById('controls');
+  box.innerHTML = '';
+  let lastGroup = null;
+
+  for (const c of CTRL){
+    if (c.group !== lastGroup){
+      const h = document.createElement('div');
+      h.className = 'group-title';
+      h.textContent = c.group;
+      box.appendChild(h);
+      lastGroup = c.group;
+    }
+
+    const row = document.createElement('div');
+    row.className = 'ctrl';
+
+    if (c.type === 'seg'){
+      row.innerHTML = `
+        <div class="ctrl-head">
+          <label>${c.label}</label>
+        </div>
+        <div class="seg" id="c-${c.key}">
+          ${c.options.map(o =>
+            `<button type="button" data-v="${o.v}" class="${params[c.key] === o.v ? 'active' : ''}">${o.label}</button>`
+          ).join('')}
+        </div>
+        ${c.hint ? `<div class="hint">${c.hint}</div>` : ''}
+      `;
+      box.appendChild(row);
+
+      const seg = row.querySelector('.seg');
+      seg.addEventListener('click', ev => {
+        const btn = ev.target.closest('button');
+        if (!btn) return;
+        params[c.key] = Number(btn.dataset.v);
+        seg.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
+        scheduleRender();
+      });
+      continue;
+    }
+
+    row.innerHTML = `
+      <div class="ctrl-head">
+        <label for="c-${c.key}">${c.label}</label>
+        <output id="o-${c.key}"></output>
+      </div>
+      <input type="range" id="c-${c.key}"
+             min="${c.min}" max="${c.max}" step="${c.step}"
+             value="${params[c.key]}">
+      ${c.hint ? `<div class="hint">${c.hint}</div>` : ''}
+    `;
+    box.appendChild(row);
+
+    const inp = row.querySelector('input');
+    const out = row.querySelector('output');
+    out.textContent = formatVal(params[c.key], c.unit);
+
+    inp.addEventListener('input', () => {
+      params[c.key] = parseFloat(inp.value);
+      out.textContent = formatVal(params[c.key], c.unit);
+      scheduleRender();
+    });
+  }
+}
+
+/* ============ 重置 ============ */
+document.getElementById('reset').addEventListener('click', () => {
+  Object.assign(params, DEFAULTS);
+  for (const c of CTRL){
+    if (c.type === 'seg'){
+      const seg = document.getElementById('c-' + c.key);
+      seg.querySelectorAll('button').forEach(b => {
+        b.classList.toggle('active', Number(b.dataset.v) === params[c.key]);
+      });
+    } else {
+      const inp = document.getElementById('c-' + c.key);
+      const out = document.getElementById('o-' + c.key);
+      inp.value = params[c.key];
+      out.textContent = formatVal(params[c.key], c.unit);
+    }
+  }
+  scheduleRender();
+});
+
+/* ============ 启动 & 节流 ============ */
+let rafId = null;
+function scheduleRender(){
+  if (rafId) return;
+  rafId = requestAnimationFrame(() => {
+    rafId = null;
+    render();
+  });
+}
+
+buildControls();
+render();
+
+let rt;
+window.addEventListener('resize', () => {
+  clearTimeout(rt);
+  rt = setTimeout(render, 120);
+});
+</script>
+</body>
+</html>

@@ -12,7 +12,7 @@
     "build:standalone": "vite build --config vite.single.config.js",
     "build:all": "npm run build && npm run build:standalone",
     "preview": "vite preview",
-    "test:parity": "node scripts/check-parity.mjs",
+    "test": "node scripts/check-model.mjs",
     "verify:render": "node scripts/verify-render.mjs"
   },
   "dependencies": {

@@ -3,7 +3,8 @@
 > 一个用来推演「**任意一个人的祖先里，到底有没有出现过富人**」的模拟器，
 > 并把血统扩散、阶层流动与天灾冲击的结果做成图表统计可视化。
 
-在线打开 `index.html` 构建产物即可运行，纯前端、零后端，所有计算都在浏览器里完成。
+纯前端、零后端，所有计算都在浏览器里完成：构建好的 `standalone/index.html` 双击就能打开，
+不需要 Node，也不需要任何服务器。
 
 ---
 
@@ -66,7 +67,7 @@
 ├─ vite.single.config.js          # 单文件构建（standalone/，双击即用）
 ├─ standalone/index.html          # 产物：全部内联的一个 HTML，无需服务器
 ├─ scripts/
-│  ├─ check-parity.mjs            # 与旧版实现对拍：npm run test:parity
+│  ├─ check-model.mjs             # 模型回归基线：npm test
 │  └─ verify-render.mjs           # 用本机浏览器真跑一遍验证渲染：npm run verify:render
 ├─ src/
 │  ├─ main.js                     # createApp 启动
@@ -84,7 +85,6 @@
 │     ├─ StatGrid.vue      SimInfo.vue
 │     ├─ ChartCard.vue     LineChart.vue
 │     └─ ModelDocs.vue
-└─ legacy/古代阶层延续模拟器.html   # 重构前的单文件版本，仅作参考
 ```
 
 数据流很简单：**参数（reactive）→ `simulate()` → 视图模型（computed）→ 组件渲染**。
@@ -107,7 +107,7 @@ standalone/index.html        # 全部 JS/CSS 内联在这一个文件里，双�
 > ⚠️ 注意 **不要** 双击 `dist/index.html`：常规构建产出的是
 > `<script type="module" src="./assets/…js">`，浏览器在 `file://` 协议下会以 CORS 为由
 > 拒绝加载模块脚本，你只会看到一个空白页。`dist/` 是给 HTTP 服务器用的，
-> 想双击运行请用 `standalone/index.html`（或 `legacy/` 里的旧版单文件）。
+> 想双击运行请用 `standalone/index.html`。
 
 ### 方式二：开发模式
 
@@ -128,10 +128,14 @@ npm run preview          # 本地起服务预览 dist/
 ### 校验脚本
 
 ```bash
-npm run test:parity     # 与 legacy/ 旧实现逐点对拍，确认重构没改变模拟结果（41 组参数）
+npm test                # 模型回归基线：默认参数等 4 组用例的末代人口与比例必须命中冻结值，
+                        # 同时检查时间序列点数、NaN / 负数人口等硬不变量
 npm run verify:render   # 用本机 headless 浏览器真的打开页面，检查 #app 挂载、3 张 canvas
                         # 是否画出像素、16 个滑杆、统计数值、无控制台报错
 ```
+
+模型基线是**自包含**的（不依赖任何历史文件）。有意修改模型时（例如将来真的加入改朝换代洗牌），
+用 `node scripts/check-model.mjs --print` 打印新结果，确认符合预期后更新脚本里的 `EXPECTED` 即可。
 
 `verify:render` 默认验证 `standalone/index.html`，也可以指定目标：
 
@@ -156,9 +160,10 @@ node scripts/verify-render.mjs dist/index.html          # 验证构建产物（f
 
 ## 关于本次重构
 
-- 旧版 686 行的单文件页面（命令式 `document.getElementById` + 手写 DOM 拼装）**归档保留**在 `legacy/` 下，仅作对照；
-- 旧版目录里那份未被任何代码引用的 Vue 2.6.10 副本（`vue.js`）已移入 `legacy/`，依赖改为 npm 安装的 Vue 3；
-- 数值结果**完全一致**：`npm run test:parity` 会抽出旧版 `simulate()` 源码，用 41 组参数（默认参数 + 40 组随机参数）逐时间点比对四组人口，误差要求 ≤ 1e-9；
+- 旧版 686 行的单文件页面（命令式 `document.getElementById` + 手写 DOM 拼装），以及目录里那份
+  未被任何代码引用的 Vue 2.6.10 副本（`vue.js`），在重构验证完成后已从仓库移除，依赖改为 npm 安装的 Vue 3；
+- 数值结果**完全一致**：重构时曾用对拍脚本抽出旧版 `simulate()` 源码，以 41 组参数（默认参数 + 40 组随机参数）
+  逐时间点比对四组人口，误差 ≤ 1e-9，全部通过；旧实现删除后，这份保证改为 `npm test` 的冻结基线（4 组代表性参数）长期守着；
 - 顺手修掉了旧版说明区里 `300万 万` 这种「单位重复」的显示 bug（`fmtWan()` 本身已带单位）；
 - 保留「一个 HTML 双击就能看图表」这个最实用的特性：`npm run build:standalone` 会打成
   `standalone/index.html`（Rollup 输出 iife + 内联脚本样式，并把 `<script>` 挪到 `</body>` 之前，

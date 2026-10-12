@@ -62,9 +62,12 @@
 .
 ├─ index.html                     # Vite 入口，挂载 #app
 ├─ package.json
-├─ vite.config.js
+├─ vite.config.js                 # 常规多文件构建（dist/，用于部署）
+├─ vite.single.config.js          # 单文件构建（standalone/，双击即用）
+├─ standalone/index.html          # 产物：全部内联的一个 HTML，无需服务器
 ├─ scripts/
-│  └─ check-parity.mjs            # 与旧版实现对拍脚本：npm run test:parity
+│  ├─ check-parity.mjs            # 与旧版实现对拍：npm run test:parity
+│  └─ verify-render.mjs           # 用本机浏览器真跑一遍验证渲染：npm run verify:render
 ├─ src/
 │  ├─ main.js                     # createApp 启动
 │  ├─ App.vue                     # 页面骨架：侧栏 + 统计卡片 + 三张图表 + 模型说明
@@ -89,15 +92,57 @@
 
 ---
 
-## 快速开始
+## 怎么运行
+
+### 方式一：双击运行（不需要 Node、不需要服务器）
+
+仓库里已经带了一份构建好的**单文件版本**：
+
+```
+standalone/index.html        # 全部 JS/CSS 内联在这一个文件里，双击就能用
+```
+
+克隆/下载后用浏览器打开它即可，也可以直接发给别人，或丢到 U 盘里。
+
+> ⚠️ 注意 **不要** 双击 `dist/index.html`：常规构建产出的是
+> `<script type="module" src="./assets/…js">`，浏览器在 `file://` 协议下会以 CORS 为由
+> 拒绝加载模块脚本，你只会看到一个空白页。`dist/` 是给 HTTP 服务器用的，
+> 想双击运行请用 `standalone/index.html`（或 `legacy/` 里的旧版单文件）。
+
+### 方式二：开发模式
 
 ```bash
-npm install      # 安装依赖（Vue 3 + Vite）
-npm run dev      # 本地开发服务器，默认 http://localhost:5173
-npm run build    # 产出静态站点到 dist/
-npm run preview  # 预览构建产物
-npm run test:parity   # 与 legacy/ 旧实现对拍，确认重构没有改变模拟结果
+npm install           # 安装依赖（Vue 3 + Vite）
+npm run dev           # 开发服务器，默认 http://localhost:5173，支持热更新
 ```
+
+### 方式三：构建部署
+
+```bash
+npm run build            # -> dist/            多文件，用于部署到静态服务器 / GitHub Pages
+npm run build:standalone # -> standalone/      单文件，双击即用
+npm run build:all        # 两个都构建
+npm run preview          # 本地起服务预览 dist/
+```
+
+### 校验脚本
+
+```bash
+npm run test:parity     # 与 legacy/ 旧实现逐点对拍，确认重构没改变模拟结果（41 组参数）
+npm run verify:render   # 用本机 headless 浏览器真的打开页面，检查 #app 挂载、3 张 canvas
+                        # 是否画出像素、16 个滑杆、统计数值、无控制台报错
+```
+
+`verify:render` 默认验证 `standalone/index.html`，也可以指定目标：
+
+```bash
+node scripts/verify-render.mjs http://127.0.0.1:4173/   # 验证已启动的服务
+node scripts/verify-render.mjs dist/index.html          # 验证构建产物（file:// 打开，会如预期失败）
+```
+
+> 说明：这两个脚本都是这次重构里加的。`vite build` 成功 ≠ 页面能跑——
+> ES module 在 `file://` 下会静默失败，只看构建日志和 DOM 文本都会得出错误结论，
+> 所以验证方式是让真实浏览器渲染一遍再读 DOM 与 canvas 像素。
 
 ## 参数一览
 
@@ -114,7 +159,10 @@ npm run test:parity   # 与 legacy/ 旧实现对拍，确认重构没有改变�
 - 旧版 686 行的单文件页面（命令式 `document.getElementById` + 手写 DOM 拼装）**归档保留**在 `legacy/` 下，仅作对照；
 - 旧版目录里那份未被任何代码引用的 Vue 2.6.10 副本（`vue.js`）已移入 `legacy/`，依赖改为 npm 安装的 Vue 3；
 - 数值结果**完全一致**：`npm run test:parity` 会抽出旧版 `simulate()` 源码，用 41 组参数（默认参数 + 40 组随机参数）逐时间点比对四组人口，误差要求 ≤ 1e-9；
-- 顺手修掉了旧版说明区里 `300万 万` 这种「单位重复」的显示 bug（`fmtWan()` 本身已带单位）。
+- 顺手修掉了旧版说明区里 `300万 万` 这种「单位重复」的显示 bug（`fmtWan()` 本身已带单位）；
+- 保留「一个 HTML 双击就能看图表」这个最实用的特性：`npm run build:standalone` 会打成
+  `standalone/index.html`（Rollup 输出 iife + 内联脚本样式，并把 `<script>` 挪到 `</body>` 之前，
+  因为普通脚本不像 `type="module"` 那样自动 defer，留在 `<head>` 会在 `#app` 出现前执行导致白屏）。
 
 ## 许可
 

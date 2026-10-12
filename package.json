@@ -9,8 +9,11 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:standalone": "vite build --config vite.single.config.js",
+    "build:all": "npm run build && npm run build:standalone",
     "preview": "vite preview",
-    "test:parity": "node scripts/check-parity.mjs"
+    "test:parity": "node scripts/check-parity.mjs",
+    "verify:render": "node scripts/verify-render.mjs"
   },
   "dependencies": {
     "vue": "^3.5.0"
